@@ -1,8 +1,7 @@
-from typing import Final
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-TOKEN: Final = "7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y"
+TOKEN = "7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y"
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -14,4 +13,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("جنین‌شناسی", callback_data='embryology')],
         [InlineKeyboardButton("اصول خدمات سلامت", callback_data='health')]
     ]
-    await update.message.reply_text("لطفاً درس مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("لطفاً درس مورد نظر را انتخاب کنید:", reply_markup=reply_markup)
+
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start_command))
+    app.run_polling()

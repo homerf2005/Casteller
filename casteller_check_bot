@@ -1,4 +1,17 @@
+from typing import Final
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-TOKEN: final = ""
+TOKEN: Final = "7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y"
+
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("فیزیولوژی", callback_data='physiology')],
+        [InlineKeyboardButton("آناتومی", callback_data='anatomy')],
+        [InlineKeyboardButton("بیوشیمی", callback_data='biochemistry')],
+        [InlineKeyboardButton("بافت‌شناسی", callback_data='histology')],
+        [InlineKeyboardButton("جنین‌شناسی", callback_data='embryology')],
+        [InlineKeyboardButton("اصول خدمات سلامت", callback_data='health')]
+    ]
+    await update.message.reply_text("لطفاً درس مورد نظر را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))

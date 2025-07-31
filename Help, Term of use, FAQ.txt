@@ -1,0 +1,19 @@
+1- Search engine
+2- Online status: Changes mannually by the user in his/her profile.
+3- Profile:
+    3-1- Monthly questionnaires
+    3-2- Profile photo
+    3-3- External links (linkedIn, Instagram, ...) 
+    3-4- Ignored chat 
+    3-5- Online status 
+    3-6- Prompt cost (mannually)
+4- Documentation: Either in a complete text or it warns in every step in demand
+5- Notification per chat request
+    5-1- Warning for reaching the deadline (1 hour)
+6- Payment gateway
+7- if user id is written only return its profile, or when i tap the user ID it shows the profile.
+8- 14 Prompts, 3 file/photos (Less than 50mb)
+9- File/Photos uploading ✅
+
+
+

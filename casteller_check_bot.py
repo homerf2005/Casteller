@@ -34,11 +34,15 @@ async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # You can create a unique botID string, for example:
     bot_unique_id = f"user_{user_id}"
     profile_path = f"D:\Researches\AI\Casteller\Profiles\{bot_unique_id}"
-    profile_path_name = f"{profile_path}\profile_name"
-    profile_path_online_status = f"{profile_path}\profile_online_status"
-    caption = f"""Name: {profile_path_name}
-                  Online_status: {profile_path_online_status}"""
-    with open(f"{profile_path}\profile_photo", 'rb') as photo:
+    profile_path_name = f"{profile_path}\profile_name.txt"
+    profile_path_online_status = f"{profile_path}\profile_online_status.txt"
+    with open(profile_path_name, 'r') as file:
+        profile_name = file.read()
+    with open(profile_path_online_status, "r") as file:
+        profile_online_status = file.read()
+    caption = f"""Name: {profile_name}
+                  Online_status: {profile_online_status}"""
+    with open(f"{profile_path}\profile_photo.png", 'rb') as photo:
         await update.message.reply_photo(photo=photo, caption= caption)
 
 async def store_chat_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -205,6 +209,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("server_photo", server_photo))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("start_2", start_2))
+    app.add_handler(CommandHandler("show_profile", show_profile))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(
         filters.TEXT & (~filters.COMMAND), store_chat_history))

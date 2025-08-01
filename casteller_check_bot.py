@@ -1,6 +1,8 @@
+from PIL import Image
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update, ReplyKeyboardRemove
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, _contexttypes
 import pytz
+import os
 timezone = pytz.timezone("UTC")
 TOKEN = '7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y'
 user_profiles = {}  # Dictionary to store user profiles
@@ -8,8 +10,25 @@ chat_history = []  # List to store chat history
 
 
 async def start_3rd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    
-    
+    user_id = update.effective_user.id  # This is the unique Telegram ID for the user
+    # You can create a unique botID string, for example:
+    bot_unique_id = f"user_{user_id}"
+    profile_path = f"D:\Researches\AI\Casteller\Profiles\{bot_unique_id}"
+    if not os.path.exists(profile_path):
+        os.makedirs(profile_path)
+        os.chdir(profile_path)
+        # Create a blank image (e.g., 800x600 pixels, white background)
+        image = Image.new("RGB", (800, 600), (255, 255, 255))
+        # Save the image to the specified path
+        image.save(f"{profile_path}\profile_photo.png", "PNG")
+        with open("name.txt","w") as file:
+            file.write("")
+        with open("online_status.txt", "w") as file:
+            file.write("")
+
+
+    else:
+        pass  # if the directory already exists, do nothing
     await context.bot.send_message(chat_id=update.effective_chat.id, text="سلام، این کامند سوم است.", reply_to_message_id=update.effective_message.id)
 
 
@@ -17,7 +36,7 @@ async def store_chat_history(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Guard in case update.message or text is None
     if update.message and update.message.text:
         chat_history.append(update.message.text)
-
+    
 
 async def show_chat_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_history:

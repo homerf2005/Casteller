@@ -21,16 +21,25 @@ async def start_3rd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         image = Image.new("RGB", (800, 600), (255, 255, 255))
         # Save the image to the specified path
         image.save(f"{profile_path}\profile_photo.png", "PNG")
-        with open("name.txt","w") as file:
+        with open("profile_name.txt","w") as file:
             file.write("")
-        with open("online_status.txt", "w") as file:
+        with open("profile_online_status.txt", "w") as file:
             file.write("")
-
-
     else:
         pass  # if the directory already exists, do nothing
     await context.bot.send_message(chat_id=update.effective_chat.id, text="سلام، این کامند سوم است.", reply_to_message_id=update.effective_message.id)
 
+async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id  # This is the unique Telegram ID for the user
+    # You can create a unique botID string, for example:
+    bot_unique_id = f"user_{user_id}"
+    profile_path = f"D:\Researches\AI\Casteller\Profiles\{bot_unique_id}"
+    profile_path_name = f"{profile_path}\profile_name"
+    profile_path_online_status = f"{profile_path}\profile_online_status"
+    caption = f"""Name: {profile_path_name}
+                  Online_status: {profile_path_online_status}"""
+    with open(f"{profile_path}\profile_photo", 'rb') as photo:
+        await update.message.reply_photo(photo=photo, caption= caption)
 
 async def store_chat_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Guard in case update.message or text is None

@@ -3,6 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Keyboar
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, _contexttypes
 import pytz
 import os
+import json
 timezone = pytz.timezone("UTC")
 TOKEN = '7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y'
 user_profiles = {}  # Dictionary to store user profiles
@@ -24,12 +25,35 @@ async def start_3rd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open("profile_name.txt","w") as file:
             file.write("")
         with open("profile_online_status.txt", "w") as file:
-            file.write("")
+            file.write("Online")
+        data = {}
+        with open("chat_history.json", "w") as json_file:
+            json.dump(data, json_file, indent=4)
     else:
         pass  # if the directory already exists, do nothing
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello, this is the third command.", reply_to_message_id=update.effective_message.id)
 
+
+async def my_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Shows the profile of the user who issued the command.
+    """
+    args = context.args
+    if args:
+        await show_other_profile(update, context)
+        return  
+    else:
+        await show_profile(update, context)
+        return
+
+
 async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(2)
+    """
+    Shows the profile of the user who issued the command.
+    """
+    args = context.args
+    if args:
+        return    
     user_id = update.effective_user.id  # This is the unique Telegram ID for the user
     bot_unique_id = f"user_{user_id}"
     profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
@@ -43,11 +67,43 @@ async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(profile_path_online_status, "r", encoding='utf-8') as file:
             profile_online_status = file.read()
         caption = f"""Name: {profile_name}
-                  Online_status: {profile_online_status}"""
+Online_status: {profile_online_status}"""
         with open(profile_photo_path, 'rb') as photo:
             await update.message.reply_photo(photo=photo, caption=caption)
     except FileNotFoundError:
         await update.message.reply_text("You have not created a profile yet. Please create your profile first using /start_3rd.")
+
+async def show_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print(1)
+    """
+    Shows the profile of another user by their user ID.
+    Some parameters and abilities are disabled for privacy.
+    Usage: /show_other_profile <user_id>
+    """
+    args = context.args
+    if not args or not args[0].isdigit():
+        await update.message.reply_text("Please provide a valid user ID. Example: /show_other_profile 123456789")
+        return
+
+    target_user_id = int(args[0])
+    bot_unique_id = f"user_{target_user_id}"
+    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
+    profile_path_name = f"{profile_path}\\profile_name.txt"
+    profile_path_online_status = f"{profile_path}\\profile_online_status.txt"
+    profile_photo_path = f"{profile_path}\\profile_photo.png"
+
+    try:
+        with open(profile_path_name, 'r', encoding='utf-8') as file:
+            profile_name = file.read()
+        with open(profile_path_online_status, "r", encoding='utf-8') as file:
+            profile_online_status = file.read()
+        # You can limit what is shown here for privacy
+        caption = f"""Name: {profile_name}
+Online_status: {profile_online_status}"""
+        with open(profile_photo_path, 'rb') as photo:
+            await update.message.reply_photo(photo=photo, caption=caption)
+    except FileNotFoundError:
+        await update.message.reply_text("This user has not created a profile yet.")
 
 async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id  # Unique Telegram ID
@@ -74,33 +130,32 @@ async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"Your name has been changed to {new_name}.")
 
-# Step 1: Command handler to start photo change process
+
 async def change_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    context.user_data["awaiting_photo"] = True
-    await update.message.reply_text("Please send your new profile photo.")
+    bot_unique_id = f"user_{user_id}"
+    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
+    os.makedirs(profile_path, exist_ok=True)
+    context.user_data["awaiting_photo"] = True # Flag to indicate that the bot is waiting for a photo
+    await update.message.reply_text("Please send your new profile photo.", reply_to_message_id=update.effective_message.id) # Ask the user to send a photo
+    app.add_handler(MessageHandler(filters.PHOTO, receive_photo)) # Register the photo handler to receive the photo
 
-# Step 2: Handler for receiving the photo and saving it
-async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get("awaiting_photo"):
+async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):    
+    """Handles the reception of a photo from the user.
+    Saves it to the user's profile directory.
+    """
+    # Check if the user is currently uploading a photo
+    if context.user_data.get("awaiting_photo"): 
         user_id = update.effective_user.id
         bot_unique_id = f"user_{user_id}"
         profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
         profile_path_photo = f"{profile_path}\\profile_photo.png"
-
-        # Ensure the profile directory exists
-        if not os.path.exists(profile_path):
-            os.makedirs(profile_path)
-
-        # Get the photo file (the highest resolution version)
-        photo_file = await update.message.photo[-1].get_file()
-        await photo_file.download_to_drive(profile_path_photo)
-
+        image = await update.message.photo[-1].get_file()  # Get Telegram File object
+        await image.download_to_drive(profile_path_photo)            # Download to disk as PNG file (the extension just defines file type)
         context.user_data["awaiting_photo"] = False
-        await update.message.reply_text("Your profile photo has been successfully changed.")
+        await update.message.reply_text("Your profile photo has been updated successfully.")
     else:
-        # Ignore if not expecting a photo
-        pass
+        await update.message.reply_text("You are not currently uploading a photo. Please use /change_photo to start the process.")
 
 async def change_online_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id  # Unique Telegram ID   
@@ -516,18 +571,21 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("show_chat_history", show_chat_history))
     app.add_handler(CommandHandler("first", first))
     app.add_handler(CommandHandler("server_photo", server_photo))
+    # Register command handler
+    app.add_handler(CommandHandler("change_photo", change_photo))
+
+# Register photo message handler
+    app.add_handler(MessageHandler(filters.PHOTO, receive_photo))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("start_2", start_2))
-    app.add_handler(CommandHandler("show_profile", show_profile))
+    app.add_handler(CommandHandler("show_profile", my_other_profile))
     app.add_handler(CommandHandler("edit_name", edit_name))
-    app.add_handler(CommandHandler("change_photo", change_photo))
     app.add_handler(CommandHandler("change_online_status", change_online_status))
     app.add_handler(CommandHandler("chat_request", chat_request))
     app.add_handler(CommandHandler("accept_request", accept_request))
     app.add_handler(CommandHandler("reject_request", reject_request))
     # Relay chat handler: relay text, photo, and document messages between users in active chat
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.Document.ALL, relay_chat))
-    app.add_handler(MessageHandler(filters.PHOTO, receive_photo))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(
         filters.TEXT & (~filters.COMMAND), store_chat_history))

@@ -4,6 +4,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 import pytz
 import os
 import json
+import datetime
 timezone = pytz.timezone("UTC")
 TOKEN = '7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y'
 user_profiles = {}  # Dictionary to store user profiles
@@ -11,7 +12,7 @@ chat_history = []  # List to store chat history
 
 
 async def start_3rd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id  # This is the unique Telegram ID for the user
+    user_id = Update.effective_user.id  # This is the unique Telegram ID for the user
     # You can create a unique botID string, for example:
     bot_unique_id = f"user_{user_id}"
     profile_path = f"D:\Researches\AI\Casteller\Profiles\{bot_unique_id}"
@@ -31,7 +32,7 @@ async def start_3rd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             json.dump(data, json_file, indent=4)
     else:
         pass  # if the directory already exists, do nothing
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello, this is the third command.", reply_to_message_id=update.effective_message.id)
+    await context.bot.send_message(chat_id=Update.effective_chat.id, text="Hello, this is the third command.", reply_to_message_id=update.effective_message.id)
 
 
 async def my_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -212,11 +213,11 @@ async def accept_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"Your chat request has been accepted by user {user_id}.\nYou can now chat. The chat will end after you send 14 messages."
         )
         del pending_chat_requests[user_id]
-        await start_private_chat(requester_id, user_id, context)
+        await start_private_chat(requester_id, user_id, update, context)
     else:
         await update.message.reply_text("No request from this user exists.")
 
-async def start_private_chat(requester_id, partner_id, context):
+async def start_private_chat(requester_id, partner_id, update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Register the chat session
     chat_key = tuple(sorted([requester_id, partner_id]))
     active_chats[chat_key] = {"requester": requester_id, "partner": partner_id, "count": 0}
@@ -234,10 +235,16 @@ async def start_private_chat(requester_id, partner_id, context):
     bot_unique_id = f"user_{user_id}"
     profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
     profile_path_chat_history = f"{profile_path}\\chat_history.json"
+    with open(profile_path_chat_history, 'r', encoding='utf-8') as file:
+        a = json.load(file)
+    print(type(a))
+    a[f"{requester_id}"] = datetime.datetime.now().isoformat()
+    with open(profile_path_chat_history, "w", encoding="utf-8") as file:
+        json.dump(a, file, indent=4)
 
 
     # Load existing chat history or create a new one   
-    
+
 async def relay_chat(update: Update,
                      context: ContextTypes.DEFAULT_TYPE):
     """

@@ -230,7 +230,14 @@ async def start_private_chat(requester_id, partner_id, context):
         chat_id=partner_id,
         text="You are now connected. Send messages, photos, or files. The chat will end when the requester sends 14 messages."
     )
+    user_id = update.effective_user.id
+    bot_unique_id = f"user_{user_id}"
+    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
+    profile_path_chat_history = f"{profile_path}\\chat_history.json"
 
+
+    # Load existing chat history or create a new one   
+    
 async def relay_chat(update: Update,
                      context: ContextTypes.DEFAULT_TYPE):
     """

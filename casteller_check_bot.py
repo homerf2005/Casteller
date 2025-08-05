@@ -1,6 +1,6 @@
 from PIL import Image
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update, ReplyKeyboardRemove
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, _contexttypes,ConversationHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, _contexttypes,ConversationHandler,Updater, CallbackContext, Application
 import pytz
 import os
 import json
@@ -9,12 +9,11 @@ from datetime import datetime, timedelta
 from openai import OpenAI
 timezone = pytz.timezone("UTC")
 TOKEN = '7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y'
-user_profiles = {}  # Dictionary to store user profiles
-chat_history = []  # List to store chat history
+tags_list = ["Physician","Surgeon","Pediatrician","Psychiatrist","Dentist","Pharmacist","Nurse","Physical Therapist","occupational Therapist","Audiologist","Ultrasound Technician","Health Administrator","Medical Director","Chief Medical Officer","Clinical Information Specialist","Business Analyst","Chief Technology Officer","Data Scientist","Compliance Professional","Cyber Architect", "Entrance exam"]
+os.chdir("D:\Researches\AI\Casteller\profiles")
 
 
-
-def count_last_30_days_contributions(data):
+def count_last_30_days_questionnaires(data):
     today = datetime.today()
     thirty_days_ago = today - timedelta(days=30)
 
@@ -27,65 +26,71 @@ def count_last_30_days_contributions(data):
     return count
 
 
+def search_tag(tag):
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
+    matching_profiles = []
+    for bot_id, profile in profiles.items():
+        if tag in profile["tags"]:
+            matching_profiles.append(bot_id)
+    return matching_profiles
+
+
 WAITING_FOR_TEXT = 1
 async def start_3rd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id  # This is the unique Telegram ID for the user
-    # You can create a unique botID string, for example:
-    bot_unique_id = f"user_{user_id}"
-    profile_path = f"D:\Researches\AI\Casteller\Profiles\{bot_unique_id}"
-    if not os.path.exists(profile_path):
-        os.makedirs(profile_path)
-        os.chdir(profile_path)
-        # Create a blank image (e.g., 800x600 pixels, white background)
-        image = Image.new("RGB", (800, 600), (255, 255, 255))
-        # Save the image to the specified path
-        image.save(f"{profile_path}\profile_photo.png", "PNG")
-        with open("profile_name.txt","w") as file:
-            file.write("")
-        with open("profile_online_status.txt", "w") as file:
-            file.write("Online")
-        data = {}
-        with open("chat_history.json", "w") as json_file:
-            json.dump(data, json_file, indent=4)
+    
+    user = update.effective_user
+    user_id = user.id
+    bot_id = f"user_{update.effective_user.id}"
+    profiles_path = f"D:\Researches\AI\Casteller\Profiles\photos"
+    
+    
+
+    try:
+        with open("profiles.json", "r") as file:               
+            profiles = json.load(file)
+    except Exception:
+        profiles = {}
+
+    if f"{bot_id}" in profiles:
+        pass
     else:
-        pass  # if the directory already exists, do nothing
+        photos = await context.bot.get_user_profile_photos(user_id)
+        if photos.total_count > 0:
+            file_id = photos.photos[0][0].file_id
+            file = await context.bot.get_file(file_id)
+            file_path = f"{profiles_path}\{bot_id}.png"
+            await file.download_to_drive(file_path)  # Async download to disk
+            photo_saved = True
+        else:
+            image = Image.new("RGB", (800, 600), (255, 255, 255))
+            image.save(f"{profiles_path}\{bot_id}.png", "PNG")
+        profiles[f"{bot_id}"] = {
+            "name": user.first_name,
+            "photo": f"{profiles_path}\{bot_id}.png",
+            "tags": [],
+            "online_status": "Online",
+            "questionnaires": {}
+        }
+        with open("profiles.json", "w") as json_file:
+            json.dump(profiles, json_file, indent=4)
+
     await context.bot.send_message(chat_id=update.effective_chat.id, text="""Hello, send your question so i can find the relevant specialist for you.
 NOTE: Your message should be a text-only_message, which indicates the major field of your question.""", reply_to_message_id=update.effective_message.id)
+    
     return WAITING_FOR_TEXT
 
 
 async def get_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handles the reception of a tag from the user.
-    Saves it to the user's profile directory.
-    """
-    print("AbzumsAI is GOAT 1")
+    
+    global tags_list
+    
     my_message = update.message.text # Get the text message from the user
     API_key = "aa-VIYcdCWFZTHh6GlKSVnyDRmOEjiJWfhDGb6HtCOSTEdQDGVP"
     base_URL = "https://api.avalai.ir/v1"
     model = "gpt-4.1-nano"
     client = OpenAI(api_key=API_key, base_url=base_URL)
-    tags_list = [
-    "Physician",
-    "Surgeon",
-    "Pediatrician",
-    "Psychiatrist",
-    "Dentist",
-    "Pharmacist",
-    "Nurse",
-    "Physical Therapist",
-    "Occupational Therapist",
-    "Audiologist",
-    "Ultrasound Technician",
-    "Health Administrator",
-    "Medical Director",
-    "Chief Medical Officer",
-    "Clinical Information Specialist",
-    "Business Analyst",
-    "Chief Technology Officer",
-    "Data Scientist",
-    "Compliance Professional",
-    "Cyber Architect"
-]
+    
     completion = client.chat.completions.create(
     model=model,
     messages=[
@@ -98,7 +103,9 @@ async def get_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
     max_tokens=2000
 )
     tag = completion.choices[0].message.content.strip()
-    search_tag(tag)
+    print(tag)
+    for i in search_tag(tag):
+        await return_profile(update, context, i)
     return ConversationHandler.END
 
 
@@ -115,83 +122,74 @@ async def my_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(2)
-    """
-    Shows the profile of the user who issued the command.
-    """
-    args = context.args
-    if args:
-        return    
-    user_id = update.effective_user.id  # This is the unique Telegram ID for the user
-    bot_unique_id = f"user_{user_id}"
-    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
-    profile_path_name = f"{profile_path}\\profile_name.txt"
-    profile_path_online_status = f"{profile_path}\\profile_online_status.txt"
-    profile_photo_path = f"{profile_path}\\profile_photo.png"
-    profile_path_chat_history = f"{profile_path}\\chat_history.json"
+    
+    bot_id = f"user_{update.effective_user.id}"
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
 
-    try:
-        with open(profile_path_name, 'r', encoding='utf-8') as file:
-            profile_name = file.read()
-        with open(profile_path_online_status, "r", encoding='utf-8') as file:
-            profile_online_status = file.read()
-        with open(profile_path_chat_history, 'r', encoding='utf-8') as file:
-            data = json.load(file)
-        mq = count_last_30_days_contributions(data)
-        caption = f"""Name: {profile_name}
-Online_status: {profile_online_status}
-Monthly questionnaires: {mq}"""
-        with open(profile_photo_path, 'rb') as photo:
-            await update.message.reply_photo(photo=photo, caption=caption)
-    except FileNotFoundError:
+    if f"{bot_id}" not in profiles:
         await update.message.reply_text("You have not created a profile yet. Please create your profile first using /start_3rd.")
+        return
+    
+    profile_name = profiles[bot_id]["name"]
+    profile_online_status = profiles[bot_id]["online_status"]
+    profile_tags = profiles[bot_id]["tags"]
+    mq = count_last_30_days_questionnaires(profiles[bot_id]["questionnaires"])
+
+    caption = f"""Name: {profile_name}
+Online_status: {profile_online_status}
+Monthly questionnaires: {mq}
+Tags: {profile_tags}"""
+    with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
+        await update.message.reply_photo(photo=photo, caption=caption)
 
 
 async def show_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(1)
-    """
-    Shows the profile of another user by their user ID.
-    Some parameters and abilities are disabled for privacy.
-    Usage: /show_other_profile <user_id>
-    """
-    args = context.args
-    if not args or not args[0].isdigit():
-        await update.message.reply_text("Please provide a valid user ID. Example: /show_other_profile 123456789")
+
+    bot_id = f"user_{context.args[0]}" 
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
+
+    if f"{bot_id}" not in profiles:
+        await update.message.reply_text("You have not created a profile yet. Please create your profile first using /start_3rd.")
         return
+    
+    profile_name = profiles[bot_id]["name"]
+    profile_online_status = profiles[bot_id]["online_status"]
+    profile_tags = profiles[bot_id]["tags"]
+    mq = count_last_30_days_questionnaires(profiles[bot_id]["questionnaires"])
 
-    target_user_id = int(args[0])
-    bot_unique_id = f"user_{target_user_id}"
-    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
-    profile_path_name = f"{profile_path}\\profile_name.txt"
-    profile_path_online_status = f"{profile_path}\\profile_online_status.txt"
-    profile_photo_path = f"{profile_path}\\profile_photo.png"
-    profile_chat_history_path = f"{profile_path}\\chat_history.json"
-
-
-
-    try:
-        with open(profile_path_name, 'r', encoding='utf-8') as file:
-            profile_name = file.read()
-        with open(profile_path_online_status, "r", encoding='utf-8') as file:
-            profile_online_status = file.read()
-        with open(profile_chat_history_path, 'r', encoding='utf-8') as file:
-            data = json.load(file)
-        mq = count_last_30_days_contributions(data)
-        # You can limit what is shown here for privacy
-        caption = f"""Name: {profile_name}
+    caption = f"""Name: {profile_name}
 Online_status: {profile_online_status}
-Monthly questionnaires: {mq}"""
-        with open(profile_photo_path, 'rb') as photo:
-            await update.message.reply_photo(photo=photo, caption=caption)
-    except FileNotFoundError:
-        await update.message.reply_text("This user has not created a profile yet.")
+Monthly questionnaires: {mq}
+Tags: {profile_tags}"""
+    with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
+        await update.message.reply_photo(photo=photo, caption=caption)
 
+
+async def return_profile(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id):
+    """Returns the profile of the user with the given bot_id."""
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)  
+    if f"{bot_id}" not in profiles:
+        return None
+    profile_name = profiles[bot_id]["name"]
+    profile_online_status = profiles[bot_id]["online_status"]
+    profile_tags = profiles[bot_id]["tags"]
+    mq = count_last_30_days_questionnaires(profiles[bot_id]["questionnaires"])
+
+    caption = f"""Name: {profile_name}
+Online_status: {profile_online_status}
+Monthly questionnaires: {mq}
+Tags: {profile_tags}"""
+    with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
+        await update.message.reply_photo(photo=photo, caption=caption)
+    
 
 async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id  # Unique Telegram ID
-    bot_unique_id = f"user_{user_id}"
-    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
-    profile_path_name = f"{profile_path}\\profile_name.txt"
+    
+    bot_id = f"user_{update.effective_user.id}"
+
 
     # Get the new name from the command argument (e.g., /edit_name NewName)
     args = context.args
@@ -204,23 +202,27 @@ async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Name cannot be empty. Please try again.")
         return
 
-    if not os.path.exists(profile_path):
-        os.makedirs(profile_path)
-
-    with open(profile_path_name, 'w', encoding='utf-8') as file:
-        file.write(new_name)
-
+    # Load the profiles from the JSON file
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
+    # Check if the user has a profile
+    if f"{bot_id}" not in profiles:
+        await update.message.reply_text("You have not created a profile yet. Please create your profile first using /start_3rd.")
+        return
+    # Update the name in the profile
+    profiles[bot_id]["name"] = new_name
+    # Save the updated profiles back to the JSON file
+    with open("profiles.json", "w") as file:
+        json.dump(profiles, file, indent=4) 
+    
     await update.message.reply_text(f"Your name has been changed to {new_name}.")
 
 
 async def change_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    bot_unique_id = f"user_{user_id}"
-    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
-    os.makedirs(profile_path, exist_ok=True)
+    bot_id = f"user_{update.effective_user.id}"
+    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\photos\\{bot_id}"
     context.user_data["awaiting_photo"] = True # Flag to indicate that the bot is waiting for a photo
     await update.message.reply_text("Please send your new profile photo.", reply_to_message_id=update.effective_message.id) # Ask the user to send a photo
-    app.add_handler(MessageHandler(filters.PHOTO, receive_photo)) # Register the photo handler to receive the photo
 
 
 async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):    
@@ -229,12 +231,10 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     # Check if the user is currently uploading a photo
     if context.user_data.get("awaiting_photo"): 
-        user_id = update.effective_user.id
-        bot_unique_id = f"user_{user_id}"
-        profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
-        profile_path_photo = f"{profile_path}\\profile_photo.png"
+        bot_id = f"user_{update.effective_user.id}"
+        profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\photos\\{bot_id}.png"
         image = await update.message.photo[-1].get_file()  # Get Telegram File object
-        await image.download_to_drive(profile_path_photo)            # Download to disk as PNG file (the extension just defines file type)
+        await image.download_to_drive(profile_path)            # Download to disk as PNG file (the extension just defines file type)
         context.user_data["awaiting_photo"] = False
         await update.message.reply_text("Your profile photo has been updated successfully.")
     else:
@@ -242,25 +242,31 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def change_online_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id  # Unique Telegram ID   
-    bot_unique_id = f"user_{user_id}"
-    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
-    profile_path_online_status = f"{profile_path}\\profile_online_status.txt"
-    with open(profile_path_online_status, 'r', encoding='utf-8') as file:
-        current_status = file.read().strip()
-    if current_status == "Online":
+    
+
+    bot_id = f"user_{update.effective_user.id}"
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
+    # Check if the user has a profile
+    if f"{bot_id}" not in profiles:
+        await update.message.reply_text("You have not created a profile yet. Please create your profile first using /start_3rd.")
+        return
+    # Update the name in the profile
+    if profiles[bot_id]["online_status"] == "Online":
         new_status = "Offline"
     else:
         new_status = "Online"
-    with open(profile_path_online_status, 'w', encoding='utf-8') as file:
-        file.write(new_status)
+    profiles[bot_id]["online_status"] = new_status
+    # Save the updated profiles back to the JSON file
+    with open("profiles.json", "w") as file:
+        json.dump(profiles, file, indent=4) 
+
+    
     await update.message.reply_text(f"Your online status has been changed to {new_status}.")
 
 
 # Dictionary to keep track of pending chat requests: {target_user_id: requester_user_id}
 pending_chat_requests = {}
-
-
 async def chat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Usage: /chat_request <target_user_id>
     user_id = update.effective_user.id
@@ -284,8 +290,6 @@ async def chat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 active_chats = {}  # (user1, user2): {"requester": id, "partner": id, "count": int}
-
-
 async def accept_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     args = context.args
@@ -524,46 +528,6 @@ async def show_chat_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No chat history available.")
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id  # This is the unique Telegram ID for the user
-    bot_unique_id = f"user_{user_id}"
-    print(update.message)
-    await update.message.reply_text(f"Hello! Your unique ID is: {bot_unique_id}")
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Hello! Your unique ID is: {bot_unique_id}")
-    keyboard = [
-        [InlineKeyboardButton("Physiology", callback_data='physiology')],
-        [InlineKeyboardButton("Anatomy", callback_data='anatomy')],
-        [InlineKeyboardButton("Biochemistry", callback_data='biochemistry')],
-        [InlineKeyboardButton("Histology", callback_data='histology')],
-        [InlineKeyboardButton("Embryology", callback_data='embryology')],
-        [InlineKeyboardButton("Health Principles", callback_data='health')]
-    ]
-    await update.message.reply_text("Please select your desired subject:", reply_markup=InlineKeyboardMarkup(keyboard))
-
-
-async def first(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text="Hello, this is the first command.", reply_to_message_id=update.effective_message.id)
-
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(f"You selected: {query.data}")
-
-
-async def send_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Replace with your desired photo URL or local path
-    photo_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Example.jpg/640px-Example.jpg"
-    await update.message.reply_photo(photo=photo_url, caption="This is a sample photo.")
-
-
-async def server_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Replace 'path/to/your/image.jpg' with the actual file path on your server
-    with open(r"C:\Users\Asus\Downloads\Screenshot 2025-07-28 132304.png", 'rb') as photo:
-        await update.message.reply_photo(photo=photo, caption="This image is from my server.")
-
-
 async def start_2(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = [
         [KeyboardButton(text="profile"), KeyboardButton(text="coin")],
@@ -647,33 +611,101 @@ async def on_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Your other callback_data handlers here...
 
 
+async def end_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text("Conversation ended.")
+    return ConversationHandler.END
+
+
+user_selections = {}
+MAX_SELECTIONS = 3
+def build_keyboard(selected_buttons):
+    keyboard = []
+    row = []
+    for i, name in enumerate(tags_list, start=1):
+        text = name
+        if i in selected_buttons:
+            text = f"✅ {text}"
+        callback_data = f"toggle_{i}"
+        row.append(InlineKeyboardButton(text, callback_data=callback_data))
+        
+        # Put 5 buttons per row for better layout
+        if i % 1 == 0:
+            keyboard.append(row)
+            row = []
+
+    # Add "Done" button on a separate row
+    keyboard.append([InlineKeyboardButton("Done", callback_data="done")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def change_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_selections[user_id] = set()
+    keyboard = build_keyboard(user_selections[user_id])
+    await update.message.reply_text("Please select up to 3 options:", reply_markup=keyboard)
+
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    if user_id not in user_selections:
+        user_selections[user_id] = set()
+
+    data = query.data
+    
+    if data == "done":
+        selected = user_selections[user_id]
+        selection_text = ", ".join(tags_list[i-1] for i in sorted(selected)) or "Nothing"
+        selection_list = selection_text.split(", ")
+        bot_id = f"user_{user_id}"
+        with open("profiles.json", "r") as file:
+            profiles = json.load(file)
+        profiles[bot_id]["tags"] = selection_list
+        with open("profiles.json", "w") as file:
+            json.dump(profiles, file, indent=4)
+        await query.edit_message_text(text=f"Tags changed to: {selection_text}")
+        user_selections[user_id] = set()
+    elif data.startswith("toggle_"):
+        option_num = int(data.split("_")[1])
+        selected = user_selections[user_id]
+
+        if option_num in selected:
+            selected.remove(option_num)
+        else:
+            if len(selected) < MAX_SELECTIONS:
+                selected.add(option_num)
+            else:
+                await query.answer(text=f"Max {MAX_SELECTIONS} selections allowed", show_alert=True)
+                return
+
+        keyboard = build_keyboard(selected)
+        await query.edit_message_reply_markup(reply_markup=keyboard)
+
 
 if __name__ == "__main__":
     print("ربات در حال اجراست...")
     app = ApplicationBuilder().token(TOKEN).build()
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start_3rd", start_3rd)],
-        states={
-            WAITING_FOR_TEXT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_tag)
-            ],
-        },
-        fallbacks=[],
-    )
+    entry_points=[CommandHandler("start_3rd", start_3rd)],
+    states={
+        WAITING_FOR_TEXT: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, get_tag)
+        ],
+    },
+    fallbacks=[CommandHandler("cancel", end_conversation)],
+)
 
     app.add_handler(conv_handler)
-    app.add_handler(CommandHandler("send_photo", send_photo))
+    app.add_handler(CommandHandler("change_tags", change_tags))
+    app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler("start_3rd", start_3rd))
     app.add_handler(CommandHandler("show_chat_history", show_chat_history))
-    app.add_handler(CommandHandler("first", first))
-    app.add_handler(CommandHandler("server_photo", server_photo))
-    # Register command handler
     app.add_handler(CommandHandler("change_photo", change_photo))
-
-# Register photo message handler
     app.add_handler(MessageHandler(filters.PHOTO, receive_photo))
-    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("start_2", start_2))
     app.add_handler(CommandHandler("show_profile", my_other_profile))
     app.add_handler(CommandHandler("edit_name", edit_name))
@@ -683,7 +715,6 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("reject_request", reject_request))
     # Relay chat handler: relay text, photo, and document messages between users in active chat
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.Document.ALL, relay_chat))
-    app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler("get_tag", get_tag))
     app.add_handler(MessageHandler(
         filters.TEXT & (~filters.COMMAND), on_button_press))

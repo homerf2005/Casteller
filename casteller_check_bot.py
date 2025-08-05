@@ -1,3 +1,4 @@
+import re
 from PIL import Image
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update, ReplyKeyboardRemove
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, _contexttypes,ConversationHandler,Updater, CallbackContext, Application
@@ -13,27 +14,7 @@ tags_list = ["Physician","Surgeon","Pediatrician","Psychiatrist","Dentist","Phar
 os.chdir("D:\Researches\AI\Casteller\profiles")
 
 
-def count_last_30_days_questionnaires(data):
-    today = datetime.today()
-    thirty_days_ago = today - timedelta(days=30)
 
-    count = 0
-    for timestamp_str in data.values():
-        timestamp = datetime.fromisoformat(timestamp_str)
-        if thirty_days_ago <= timestamp <= today:
-            count += 1
-
-    return count
-
-
-def search_tag(tag):
-    with open("profiles.json", "r") as file:
-        profiles = json.load(file)
-    matching_profiles = []
-    for bot_id, profile in profiles.items():
-        if tag in profile["tags"]:
-            matching_profiles.append(bot_id)
-    return matching_profiles
 
 
 WAITING_FOR_TEXT = 1
@@ -109,19 +90,33 @@ async def get_tag(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-async def my_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Shows the profile of the user who issued the command.
-    """
-    args = context.args
-    if args:
-        await show_other_profile(update, context)
-        return  
+def search_tag(tag):
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
+    matching_profiles = []
+    for bot_id, profile in profiles.items():
+        if tag in profile["tags"]:
+            matching_profiles.append(bot_id)
+    return matching_profiles
+
+
+async def end_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text("Conversation ended.")
+    return ConversationHandler.END
+
+
+
+
+async def my_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE, input_id):
+    bot_id = f"user_{update.effective_user.id}"
+    if input_id == bot_id:
+        await show_my_profile(update, context)  
     else:
-        await show_profile(update, context)
-        return
+        await return_profile(update, context, input_id)
 
 
-async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_my_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     bot_id = f"user_{update.effective_user.id}"
     with open("profiles.json", "r") as file:
@@ -136,30 +131,8 @@ async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     profile_tags = profiles[bot_id]["tags"]
     mq = count_last_30_days_questionnaires(profiles[bot_id]["questionnaires"])
 
-    caption = f"""Name: {profile_name}
-Online_status: {profile_online_status}
-Monthly questionnaires: {mq}
-Tags: {profile_tags}"""
-    with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
-        await update.message.reply_photo(photo=photo, caption=caption)
-
-
-async def show_other_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    bot_id = f"user_{context.args[0]}" 
-    with open("profiles.json", "r") as file:
-        profiles = json.load(file)
-
-    if f"{bot_id}" not in profiles:
-        await update.message.reply_text("You have not created a profile yet. Please create your profile first using /start_3rd.")
-        return
-    
-    profile_name = profiles[bot_id]["name"]
-    profile_online_status = profiles[bot_id]["online_status"]
-    profile_tags = profiles[bot_id]["tags"]
-    mq = count_last_30_days_questionnaires(profiles[bot_id]["questionnaires"])
-
-    caption = f"""Name: {profile_name}
+    caption = f"""ID: /{bot_id}
+Name: {profile_name}
 Online_status: {profile_online_status}
 Monthly questionnaires: {mq}
 Tags: {profile_tags}"""
@@ -168,23 +141,55 @@ Tags: {profile_tags}"""
 
 
 async def return_profile(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id):
-    """Returns the profile of the user with the given bot_id."""
     with open("profiles.json", "r") as file:
         profiles = json.load(file)  
+    
     if f"{bot_id}" not in profiles:
-        return None
+        print(f"there is no profile with the ID: {bot_id}")
+        return
     profile_name = profiles[bot_id]["name"]
     profile_online_status = profiles[bot_id]["online_status"]
     profile_tags = profiles[bot_id]["tags"]
     mq = count_last_30_days_questionnaires(profiles[bot_id]["questionnaires"])
 
-    caption = f"""Name: {profile_name}
+    caption = f"""ID: /{bot_id}
+Name: {profile_name}
 Online_status: {profile_online_status}
 Monthly questionnaires: {mq}
 Tags: {profile_tags}"""
     with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
         await update.message.reply_photo(photo=photo, caption=caption)
     
+
+async def handle_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    # Extract the user ID from the command, e.g. /user_123456 -> 123456
+    match = re.match(r'^/user_(\d+)$', text)
+    if match:
+        user_id = match.group(1)
+        # Here you implement logic to show the profile related to user_id
+        # For demonstration, we just reply with the extracted user_id
+        await update.message.reply_text(f"Showing profile for user ID: {user_id}")
+        await my_other_profile(update, context, f"user_{user_id}")
+    else:
+        # In case pattern does not match exactly — optional fallback
+        await update.message.reply_text("Invalid user command format.")
+
+
+
+
+def count_last_30_days_questionnaires(data):
+    today = datetime.today()
+    thirty_days_ago = today - timedelta(days=30)
+
+    count = 0
+    for timestamp_str in data.values():
+        timestamp = datetime.fromisoformat(timestamp_str)
+        if thirty_days_ago <= timestamp <= today:
+            count += 1
+
+    return count
+
 
 async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
@@ -265,7 +270,73 @@ async def change_online_status(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(f"Your online status has been changed to {new_status}.")
 
 
-# Dictionary to keep track of pending chat requests: {target_user_id: requester_user_id}
+async def change_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_selections[user_id] = set()
+    keyboard = build_keyboard(user_selections[user_id])
+    await update.message.reply_text("Please select up to 3 options:", reply_markup=keyboard)
+
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    if user_id not in user_selections:
+        user_selections[user_id] = set()
+
+    data = query.data
+    
+    if data == "done":
+        selected = user_selections[user_id]
+        selection_text = ", ".join(tags_list[i-1] for i in sorted(selected)) or "Nothing"
+        selection_list = selection_text.split(", ")
+        bot_id = f"user_{user_id}"
+        with open("profiles.json", "r") as file:
+            profiles = json.load(file)
+        profiles[bot_id]["tags"] = selection_list
+        with open("profiles.json", "w") as file:
+            json.dump(profiles, file, indent=4)
+        await query.edit_message_text(text=f"Tags changed to: {selection_text}")
+        user_selections[user_id] = set()
+    elif data.startswith("toggle_"):
+        option_num = int(data.split("_")[1])
+        selected = user_selections[user_id]
+
+        if option_num in selected:
+            selected.remove(option_num)
+        else:
+            if len(selected) < MAX_SELECTIONS:
+                selected.add(option_num)
+            else:
+                await query.answer(text=f"Max {MAX_SELECTIONS} selections allowed", show_alert=True)
+                return
+
+        keyboard = build_keyboard(selected)
+        await query.edit_message_reply_markup(reply_markup=keyboard)
+user_selections = {}
+MAX_SELECTIONS = 3
+def build_keyboard(selected_buttons):
+    keyboard = []
+    row = []
+    for i, name in enumerate(tags_list, start=1):
+        text = name
+        if i in selected_buttons:
+            text = f"✅ {text}"
+        callback_data = f"toggle_{i}"
+        row.append(InlineKeyboardButton(text, callback_data=callback_data))
+        
+        # Put 5 buttons per row for better layout
+        if i % 1 == 0:
+            keyboard.append(row)
+            row = []
+
+    # Add "Done" button on a separate row
+    keyboard.append([InlineKeyboardButton("Done", callback_data="done")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+
 pending_chat_requests = {}
 async def chat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Usage: /chat_request <target_user_id>
@@ -287,7 +358,6 @@ async def chat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Your request has been sent.")
     except Exception as e:
         await update.message.reply_text("Could not send the request to the user. Maybe they haven't started the bot.")
-
 
 active_chats = {}  # (user1, user2): {"requester": id, "partner": id, "count": int}
 async def accept_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -514,208 +584,40 @@ async def reject_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No request from this user exists.")
 
 
-async def store_chat_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Guard in case update.message or text is None
-    if update.message and update.message.text:
-        chat_history.append(update.message.text)
-    
-
-async def show_chat_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if chat_history:
-        history_text = "\n".join(chat_history)
-        await update.message.reply_text(f"Chat History:\n{history_text}")
-    else:
-        await update.message.reply_text("No chat history available.")
 
 
-async def start_2(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    buttons = [
-        [KeyboardButton(text="profile"), KeyboardButton(text="coin")],
-        [KeyboardButton(text="help")]
-    ]
-    reply_markup = ReplyKeyboardMarkup(
-        buttons, resize_keyboard=True, one_time_keyboard=False)
-    await update.message.reply_text("Please select one of the options:", reply_markup=reply_markup)
 
 
-async def on_button_press(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in user_profiles:
-        user_profiles[user_id] = {"name": "Homer", "age": 20}
-
-    pressed_button = update.message.text
-
-    if pressed_button == "profile":
-        # Delete user's message "profile" to remove it from chat
-        try:
-            await update.message.delete()
-        except Exception as e:
-            pass  # Ignore if unable to delete
-        app.add_handler(MessageHandler(
-        filters.TEXT & (~filters.COMMAND), store_chat_history))
-        app.add_handler(MessageHandler(
-        filters.TEXT & (~filters.COMMAND), on_button_press))
-    # Register relay_chat handler for forwarding messages
-        app.add_handler(MessageHandler(
-        filters.TEXT | filters.PHOTO | filters.Document.ALL,
-        relay_chat
-    ))
-        app.run_polling()
-        # Inline buttons shown attached to the bot's new message
-        inline_buttons = [
-            [InlineKeyboardButton("Change Name", callback_data="change_name")],
-            [InlineKeyboardButton("Change Age", callback_data="change_age")]
-        ]
-        inline_markup = InlineKeyboardMarkup(inline_buttons)
-
-        text = f"name: {profile['name']}, Age: {profile['age']}"
-
-        # Send new message with profile info and inline keyboard,
-        # and remove the reply keyboard (so "profile" button is gone)
-        await update.effective_chat.send_message(
-            text=text,
-            reply_markup=ReplyKeyboardRemove()  # hides the previous custom keyboard
-        )
-        # Then edit this message to add inline keyboard (cannot add in send_message reply_markup with ReplyKeyboardRemove),
-        # So send it in one go by creating message with both inline keyboard and ReplyKeyboardRemove:
-
-        # Actually, ReplyKeyboardRemove can't be combined with InlineKeyboardMarkup in one message via telegram API.
-        # So a trick is to first send a message with ReplyKeyboardRemove, then edit the same message to attach InlineKeyboardMarkup.
-
-        # But to keep it simple, first remove keyboard, then send inline keyboard in a second message:
-        await update.effective_chat.send_message(
-            text="Select an option to change your profile:",
-            reply_markup=inline_markup
-        )
-
-    else:
-        # For other buttons, handle normally or send some message
-        await update.message.reply_text(f"You selected the button: {pressed_button}.")
 
 
-async def on_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-
-    if user_id not in user_profiles:
-        user_profiles[user_id] = {"name": "Homer", "age": 20}
-
-    if query.data == "change_name":
-        await query.answer()  # Acknowledge the button press to remove the loading animation
-        context.user_data["awaiting_name"] = True
-        # Ask the user to send new name
-        await query.message.reply_text(
-            "Please enter your new name:",
-            reply_markup=ReplyKeyboardRemove()
-        )
-    # Your other callback_data handlers here...
-
-
-async def end_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    await update.message.reply_text("Conversation ended.")
-    return ConversationHandler.END
-
-
-user_selections = {}
-MAX_SELECTIONS = 3
-def build_keyboard(selected_buttons):
-    keyboard = []
-    row = []
-    for i, name in enumerate(tags_list, start=1):
-        text = name
-        if i in selected_buttons:
-            text = f"✅ {text}"
-        callback_data = f"toggle_{i}"
-        row.append(InlineKeyboardButton(text, callback_data=callback_data))
-        
-        # Put 5 buttons per row for better layout
-        if i % 1 == 0:
-            keyboard.append(row)
-            row = []
-
-    # Add "Done" button on a separate row
-    keyboard.append([InlineKeyboardButton("Done", callback_data="done")])
-    return InlineKeyboardMarkup(keyboard)
-
-
-async def change_tags(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    user_selections[user_id] = set()
-    keyboard = build_keyboard(user_selections[user_id])
-    await update.message.reply_text("Please select up to 3 options:", reply_markup=keyboard)
-
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-
-    if user_id not in user_selections:
-        user_selections[user_id] = set()
-
-    data = query.data
-    
-    if data == "done":
-        selected = user_selections[user_id]
-        selection_text = ", ".join(tags_list[i-1] for i in sorted(selected)) or "Nothing"
-        selection_list = selection_text.split(", ")
-        bot_id = f"user_{user_id}"
-        with open("profiles.json", "r") as file:
-            profiles = json.load(file)
-        profiles[bot_id]["tags"] = selection_list
-        with open("profiles.json", "w") as file:
-            json.dump(profiles, file, indent=4)
-        await query.edit_message_text(text=f"Tags changed to: {selection_text}")
-        user_selections[user_id] = set()
-    elif data.startswith("toggle_"):
-        option_num = int(data.split("_")[1])
-        selected = user_selections[user_id]
-
-        if option_num in selected:
-            selected.remove(option_num)
-        else:
-            if len(selected) < MAX_SELECTIONS:
-                selected.add(option_num)
-            else:
-                await query.answer(text=f"Max {MAX_SELECTIONS} selections allowed", show_alert=True)
-                return
-
-        keyboard = build_keyboard(selected)
-        await query.edit_message_reply_markup(reply_markup=keyboard)
 
 
 if __name__ == "__main__":
     print("ربات در حال اجراست...")
     app = ApplicationBuilder().token(TOKEN).build()
-
+    
+    user_command_pattern = r'^/user_\d+$'
+    user_command_handler = MessageHandler(filters.Regex(user_command_pattern), handle_user_command)
+    app.add_handler(user_command_handler)
+    
     conv_handler = ConversationHandler(
     entry_points=[CommandHandler("start_3rd", start_3rd)],
     states={
         WAITING_FOR_TEXT: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, get_tag)
-        ],
-    },
-    fallbacks=[CommandHandler("cancel", end_conversation)],
-)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, get_tag)],},fallbacks=[CommandHandler("cancel", end_conversation)],)
 
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler("change_tags", change_tags))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(CommandHandler("start_3rd", start_3rd))
-    app.add_handler(CommandHandler("show_chat_history", show_chat_history))
     app.add_handler(CommandHandler("change_photo", change_photo))
     app.add_handler(MessageHandler(filters.PHOTO, receive_photo))
-    app.add_handler(CommandHandler("start_2", start_2))
-    app.add_handler(CommandHandler("show_profile", my_other_profile))
+    app.add_handler(CommandHandler("show_profile", show_my_profile))
     app.add_handler(CommandHandler("edit_name", edit_name))
     app.add_handler(CommandHandler("change_online_status", change_online_status))
     app.add_handler(CommandHandler("chat_request", chat_request))
     app.add_handler(CommandHandler("accept_request", accept_request))
     app.add_handler(CommandHandler("reject_request", reject_request))
-    # Relay chat handler: relay text, photo, and document messages between users in active chat
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.Document.ALL, relay_chat))
     app.add_handler(CommandHandler("get_tag", get_tag))
-    app.add_handler(MessageHandler(
-        filters.TEXT & (~filters.COMMAND), on_button_press))
     app.run_polling()

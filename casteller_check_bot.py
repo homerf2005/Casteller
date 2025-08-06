@@ -6,7 +6,6 @@ import pytz
 import os
 import json
 import datetime
-from datetime import datetime, timedelta
 from openai import OpenAI
 timezone = pytz.timezone("UTC")
 TOKEN = '7673808687:AAFDC11CSpQLYKMZnZPmo0nsWK7Ex09hX2Y'
@@ -139,7 +138,7 @@ Tags: {profile_tags}"""
     with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
         await update.message.reply_photo(photo=photo, caption=caption)
 
-
+active_chats = {}
 async def return_profile(update: Update, context: ContextTypes.DEFAULT_TYPE, bot_id):
     with open("profiles.json", "r") as file:
         profiles = json.load(file)  
@@ -157,9 +156,27 @@ Name: {profile_name}
 Online_status: {profile_online_status}
 Monthly questionnaires: {mq}
 Tags: {profile_tags}"""
-    with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
-        await update.message.reply_photo(photo=photo, caption=caption)
+    keyboard = [
+    [
+        InlineKeyboardButton("DM them", callback_data=f"dm_request_{bot_id}")
+    ]
+]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
+    with open(profiles[f"{bot_id}"]["photo"], 'rb') as photo:
+        await update.message.reply_photo(photo=photo, caption=caption, reply_markup=reply_markup)
+    
+async def button_callback(update, context):
+    query = update.callback_query
+    await query.answer()  # Acknowledge the callback query
+
+    data = query.data
+    if data.startswith("dm_request_"):
+        target_user_id = str(data[len("dm_request_user_"):])
+        user_id = int(update.effective_user.id)  # Extract user ID from the bot's ID
+        await chat_request(update, context, user_id, target_user_id)  # Define this function according to your logic
+
+
 
 async def handle_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -179,12 +196,12 @@ async def handle_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 def count_last_30_days_questionnaires(data):
-    today = datetime.today()
-    thirty_days_ago = today - timedelta(days=30)
+    today = datetime.datetime.today()
+    thirty_days_ago = today - datetime.timedelta(days=30)
 
     count = 0
     for timestamp_str in data.values():
-        timestamp = datetime.fromisoformat(timestamp_str)
+        timestamp = datetime.datetime.fromisoformat(timestamp_str)
         if thirty_days_ago <= timestamp <= today:
             count += 1
 
@@ -225,7 +242,9 @@ async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def change_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot_id = f"user_{update.effective_user.id}"
-    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\photos\\{bot_id}"
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)  
+    profile_path = profiles[f"{bot_id}"]["photo"]
     context.user_data["awaiting_photo"] = True # Flag to indicate that the bot is waiting for a photo
     await update.message.reply_text("Please send your new profile photo.", reply_to_message_id=update.effective_message.id) # Ask the user to send a photo
 
@@ -237,7 +256,9 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if the user is currently uploading a photo
     if context.user_data.get("awaiting_photo"): 
         bot_id = f"user_{update.effective_user.id}"
-        profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\photos\\{bot_id}.png"
+        with open("profiles.json", "r") as file:
+            profiles = json.load(file)  
+        profile_path = profiles[f"{bot_id}"]["photo"]
         image = await update.message.photo[-1].get_file()  # Get Telegram File object
         await image.download_to_drive(profile_path)            # Download to disk as PNG file (the extension just defines file type)
         context.user_data["awaiting_photo"] = False
@@ -338,27 +359,37 @@ def build_keyboard(selected_buttons):
 
 
 pending_chat_requests = {}
-async def chat_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Usage: /chat_request <target_user_id>
-    user_id = update.effective_user.id
-    args = context.args
-    if not args or not args[0].isdigit():
-        await update.message.reply_text("Please enter the numeric user ID after the command. Example: /chat_request 123456789")
-        return
-    target_user_id = int(args[0])
-    if target_user_id == user_id:
-        await update.message.reply_text("You cannot send a request to yourself.")
-        return
+async def chat_request(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, target_user_id: str):
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
+
     pending_chat_requests[target_user_id] = user_id
+
     try:
         await context.bot.send_message(
-            chat_id=target_user_id,
-            text=f"You have received a chat request from user {user_id}.\nTo accept: /accept_request {user_id}\nTo reject: /reject_request {user_id}"
+            chat_id=int(target_user_id),
+            text=(
+                f"You have received a chat request from /user_{user_id}.\n"
+                f"To accept: /accept_request {user_id}\n"
+                f"To reject: /reject_request {user_id}"
+            )
         )
-        await update.message.reply_text("Your request has been sent.")
+        # Safely reply to callback query or fallback
+        query = update.callback_query
+        if query and query.message:
+            await query.message.reply_text("Your request has been sent.")
+        else:
+            # fallback to sending a direct message to the sender
+            await context.bot.send_message(chat_id=user_id, text="Your request has been sent.")
     except Exception as e:
-        await update.message.reply_text("Could not send the request to the user. Maybe they haven't started the bot.")
-
+        print(f"Error sending chat request: {e}")
+        query = update.callback_query
+        if query and query.message:
+            await query.message.reply_text(
+                "Could not send the request to the user. Maybe they haven't started the bot."
+            )
+        else:
+            await context.bot.send_message(chat_id=user_id, text="Could not send the request to the user. Maybe they haven't started the bot.")
 active_chats = {}  # (user1, user2): {"requester": id, "partner": id, "count": int}
 async def accept_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -382,6 +413,8 @@ async def accept_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start_private_chat(requester_id, partner_id, update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Register the chat session
     chat_key = tuple(sorted([requester_id, partner_id]))
+    print(requester_id) # Debugging line to check requester_id
+    print(partner_id) # Debugging line to check partner_id
     active_chats[chat_key] = {"requester": requester_id, "partner": partner_id, "count": 0}
 
     # Notify both users
@@ -393,16 +426,14 @@ async def start_private_chat(requester_id, partner_id, update: Update, context: 
         chat_id=partner_id,
         text="You are now connected. Send messages, photos, or files. The chat will end when the requester sends 14 messages."
     )
-    user_id = update.effective_user.id
-    bot_unique_id = f"user_{user_id}"
-    profile_path = f"D:\\Researches\\AI\\Casteller\\Profiles\\{bot_unique_id}"
-    profile_path_chat_history = f"{profile_path}\\chat_history.json"
-    with open(profile_path_chat_history, 'r', encoding='utf-8') as file:
-        a = json.load(file)
-    print(type(a))
-    a[f"{requester_id}"] = datetime.datetime.now().isoformat()
-    with open(profile_path_chat_history, "w", encoding="utf-8") as file:
-        json.dump(a, file, indent=4)
+    
+    bot_id = f"user_{update.effective_user.id}"
+    with open("profiles.json", "r") as file:
+        profiles = json.load(file)
+    
+    profiles[f"{bot_id}"]["questionnaires"][f"user_{requester_id}"] = datetime.datetime.now().isoformat()
+    with open("profiles.json", "w", encoding="utf-8") as file:
+        json.dump(profiles, file, indent=4)
 
 
     # Load existing chat history or create a new one   
@@ -605,7 +636,7 @@ if __name__ == "__main__":
     states={
         WAITING_FOR_TEXT: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, get_tag)],},fallbacks=[CommandHandler("cancel", end_conversation)],)
-
+    app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler("change_tags", change_tags))
     app.add_handler(CallbackQueryHandler(button_handler))

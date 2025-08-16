@@ -5,10 +5,6 @@
   Medical Student, Alborz University of Medical Sciences  
   mfakouri2005@gmail.com  
 
-- **Sepeta Zibaei**  
-  Medical Student, Alborz University of Medical Sciences  
-  Sepz821mds@gmail.com  
-
 ## Team Mentors
 - **Sina Moradi**  
   Medical Student, Alborz University of Medical Science  

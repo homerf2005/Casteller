@@ -1,25 +1,175 @@
-# Casteller
+# Casteller: Asynchronous Prompt-Based Mentoring Platform
 
-Obtaining expert consultation is often a slow and inefficient process. Scheduling face-to-face or online meetings requires coordination which leads to delays and limits the number of consultations possible within a work shift. Email exchanges can be unreliable due to slow or absent responses, and finding the right contact information is often difficult. These challenges are especially problematic for startups and individuals who need timely advice. There is a clear need for a faster, more flexible system to access expert consultation.
+## Team Members
+- **Mohammdreza Fakouri**  
+  Medical Student, Alborz University of Medical Sciences  
+  mfakouri2005@gmail.com  
 
-Casteller addresses this need by offering an asynchronous, prompt-based mentoring platform delivered through a Telegram bot. This platform enables users to connect with experts quickly and flexibly, eliminating the scheduling and cost barriers associated with traditional meetings. Compared to email, Casteller provides a more integrated and responsive user experience, benefiting both experts and mentees. Experts can consult with more people and monetize their knowledge efficiently, while mentees save significant time and costs.
+- **Sepeta Zibaei**  
+  Medical Student, Alborz University of Medical Sciences  
+  Sepz821mds@gmail.com  
 
-Casteller serves a wide audience, including professionals, entrepreneurs, students, and employees across various industries such as medicine and law. It is particularly valuable for those preparing for important milestones like university entrance exams. Users can seek guidance on diverse topics including professional development, business challenges, skill-building, and exam strategies. The platform accommodates both free and premium consultations, where experts set their own fees, creating a balanced ecosystem that encourages participation and rewards expertise.
+## Team Mentors
+- **Sina Moradi**  
+  Medical Student, Alborz University of Medical Science  
+  sina80mor@gmail.com  
 
-Key benefits of Casteller include its integrated platform design, which features a “monthly questionnaire” metric to analyze mentor activity and credibility. Its asynchronous system provides flexible scheduling, allowing consultations to fit seamlessly into busy routines. The platform prioritizes time efficiency with rapid expert responses that eliminate the need for rigid scheduling. By removing synchronous meetings, it reduces financial burdens, offering users access to top experts who provide concise, targeted advice at minimal cost.
+- **Ali M. Shabestari**  
+  Computer Engineering Student, Sharif University of Technology  
+  ali.shabestari01@sharif.edu  
 
-The primary goal of Casteller is to provide a streamlined and accessible mentoring platform that connects users with experts in various fields via Telegram. The platform aims to make expert guidance more efficient and widely available, especially in high-demand contexts like university entrance exams, where timely advice can have a significant impact.
+---
 
-To measure success, Casteller tracks several metrics: user engagement measured by the number of consultations per user, average expert response time, user satisfaction rated through feedback scores post-consultation, and tangible goal attainment such as improvements in exam scores or business milestones. For example, a user seeking strategies for the Konkur exam can receive actionable advice from an expert in minutes.
+## 1. Problem Summary
 
-Casteller collects and manages user-generated data including registration details, questions, answers, uploaded files, ratings, feedback, and communication logs from both mentors and mentees. This data supports matching, interaction tracking, and quality assurance. The platform integrates with public professional profiles like LinkedIn and Google Scholar, and open mentorship datasets to verify experts and enhance accuracy in matching. All sensitive data, including private messages and documents, are encrypted and access-controlled, adhering to privacy regulations to protect user trust.
+Obtaining expert consultation remains a slow and often inefficient process. Key challenges include:
 
-Technically, Casteller relies on the python-telegram-bot library for asynchronous interaction with Telegram’s Bot API. API endpoints and session logic are managed via FastAPI or Flask. User and expert data are stored in PostgreSQL or SQLite databases with SQLAlchemy handling database operations. Security measures include bcrypt for password hashing, and configuration management is done using python-dotenv. The platform is containerized with Docker and deployed on cloud services such as Heroku or AWS to ensure reliability and scalability.
+- Scheduling face-to-face or online meetings requires coordination and causes delays.
+- Limited number of consultations possible in a work shift.
+- Email exchanges are unreliable due to slow or absent responses.
+- Difficulty in finding appropriate contact information.
+- The delays are especially problematic for startups and individuals needing timely advice.
 
-Success for Casteller is evaluated against clear benchmarks: achieving an average expert response time under 5 minutes, reaching 70% user retention for repeat users within three months, and maintaining a user satisfaction rating of at least 4.5 out of 5. These benchmarks are informed by similar mentoring platforms and user expectations.
+**Need:** A faster, more flexible system for expert consultation.
 
-Ethical challenges and societal risks are carefully addressed, focusing on user privacy and the prevention of inaccurate or harmful advice. Casteller enforces strict data protection, anonymizes user data, and vets experts while continuously monitoring quality. Clear disclaimers remind users that consultations do not replace professional medical or legal advice, minimizing potential harm.
+---
 
-Looking ahead, optional features can leverage machine learning and natural language processing (NLP) to enhance the user experience. For instance, a dataset of previously asked questions and answers could be employed by a search engine to rank and identify the most relevant experts who are likely to answer new questions. This enables users to ask their questions first and have the system intelligently find the best matches. Additionally, showing published expert answers powered by language models can prevent spending money on trivial or repetitive questions.
+## 2. Solution Summary
 
-In summary, Casteller offers a transformative solution for expert mentoring by creating a fast, flexible, and cost-effective platform that removes traditional barriers, thus empowering users with timely access to valuable expertise across multiple fields.
+**Casteller** is an asynchronous, prompt-based mentoring platform delivered via a **Telegram bot** that:
+
+- Enables users to connect with experts quickly and flexibly.
+- Avoids scheduling and cost barriers of traditional meetings.
+- Offers a more integrated and responsive experience compared to email.
+
+### Who benefits?
+
+- **Experts**: Can consult more people and monetize their knowledge.
+- **Mentees**: Save time and reduce consultation costs.
+
+### Target users
+
+- Professionals, entrepreneurs, students, and employees across industries.
+- Fields include medical, legal, and exam preparation (e.g., university entrance exams).
+
+### Consultation topics
+
+- Professional development
+- Business challenges
+- Skill-building
+- Exam strategies
+
+### Pricing model
+
+- Both free and premium consultations.
+- Experts set their own fees, creating a balanced ecosystem encouraging participation and rewarding expertise.
+
+---
+
+## Key Benefits
+
+- **Integrated Platform:** Includes a “monthly questionnaire” metric to analyze mentor activity and credibility.
+- **Flexible Scheduling:** Asynchronous system fits consultations into daily routines.
+- **Time Efficiency:** Rapid expert responses, eliminating rigid scheduling.
+- **Cost Savings:** Removes the need for synchronous meetings.
+- **Access to Top Experts:** Users submit concise queries to leading professionals with minimal cost burden.
+
+---
+
+## Main Goals of the Project
+
+- Provide a streamlined, accessible mentoring platform via Telegram.
+- Make expert guidance more efficient and widely available.
+- Deliver timely advice especially for high-demand contexts such as university entrance exams, where it can significantly impact outcomes.
+
+---
+
+## Metrics for Improvement
+
+- **User engagement:** Number of consultations per user.
+- **Expert response time:** Average response time to queries.
+- **User satisfaction:** Feedback scores after consultations.
+- **Goal attainment:** Measurable improvements in outcomes (e.g., exam scores, business milestones).
+
+> Example: A user can ask for *Konkur* exam strategies and receive actionable advice from an expert within minutes.
+
+---
+
+## Data Usage
+
+Casteller collects and manages:
+
+- Registration details.
+- Questions and answers.
+- Uploaded files.
+- Ratings and feedback.
+- Communication logs between mentors and mentees.
+
+This data is used to:
+
+- Improve matching.
+- Track interactions.
+- Ensure quality assurance.
+
+Additional data sources:
+
+- Integration with public professional profiles such as LinkedIn and Google Scholar.
+- Open mentorship datasets to verify experts and improve matching accuracy.
+
+**Privacy:**  
+All sensitive data, including private messages and uploaded documents, is encrypted and access-controlled in compliance with privacy regulations to ensure user trust.
+
+---
+
+## Libraries and Techniques
+
+- **Telegram interaction:** `python-telegram-bot` library for asynchronous API communication.
+- **API management:** FastAPI or Flask for endpoints and session logic.
+- **Data storage:** PostgreSQL or SQLite with SQLAlchemy.
+- **Security:** bcrypt for password hashing.
+- **Configuration:** python-dotenv.
+- **Deployment:** Containerized with Docker and deployed on platforms like Heroku or AWS for scalability and reliability.
+
+---
+
+## Evaluation of Results
+
+Casteller's success will be measured by:
+
+- **Average expert response time:** Target under 5 minutes.
+- **User retention:** Target 70% repeat users within three months.
+- **User satisfaction rating:** Target 4.5 out of 5.
+
+Benchmarks are based on comparable mentoring platforms and user expectations.
+
+---
+
+## Ethical Challenges and Societal Risks
+
+- Ensuring user privacy rigorously.
+- Preventing the spread of inaccurate or harmful advice.
+- Implementing strict data protection and anonymization.
+- Vetting experts with continuous quality monitoring.
+- Providing clear disclaimers that consultations do not replace professional medical or legal advice, minimizing potential harm.
+
+---
+
+## Optional Features (Future Enhancements)
+
+- Use machine learning and NLP technologies to transform user experience.
+- Load datasets of previously asked questions/answers into a search engine to:
+
+  - Sort results based on experts most likely to answer a user’s question.
+  - Allow the user to post their question and have the system find related experts automatically.
+
+- Display published answers by a language model to reduce spending on trivial questions.
+
+---
+
+# Summary
+
+Casteller offers an innovative, asynchronous mentoring platform enabling fast, flexible, and affordable access to expert consultations. It removes traditional barriers and connects users across various fields to top experts via Telegram, improving professional development, business outcomes, and exam preparation success.
+
+---
+
+*For further information or inquiries, please contact the team members or mentors listed above.*
